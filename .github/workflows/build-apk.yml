@@ -1,47 +1,37 @@
 name: Build Android APK
 
-# 触发条件：推送到 main 分支时自动打包
 on:
   push:
     branches: [ main ]
-  # 也可以手动触发：在 GitHub 仓库的 Actions 页面点「Run workflow」
   workflow_dispatch:
 
-# 运行环境：Ubuntu 最新版（兼容 Buildozer）
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
-      # 步骤 1：拉取仓库代码
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 步骤 2：安装 Python 3.10（和你的本地版本一致）
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 步骤 3：安装 Buildozer 和依赖
-      - name: Install Buildozer and dependencies
+      - name: Install Buildozer and system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
           pip install --upgrade pip
           pip install buildozer==1.5.0
 
-      # 步骤 4：初始化 Buildozer（确保配置生效）
-      - name: Initialize Buildozer
-        run: buildozer init
-
-      # 步骤 5：执行打包（核心步骤）
       - name: Build APK with Buildozer
         run: buildozer -v android debug
 
-      # 步骤 6：上传 APK 作为产物（打包完成后可下载）
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: receipt-ocr-apk
-          path: bin/*.apk  # 打包后的 APK 都在 bin 文件夹里
+          path: bin/*.apk
