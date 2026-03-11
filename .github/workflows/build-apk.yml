@@ -20,7 +20,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 只缓存 p4a 依赖，避免打包平台“脏缓存”
       - name: Cache python-for-android dependencies
         uses: actions/cache@v4
         with:
@@ -29,7 +28,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-p4a-
 
-      # 强制清理 android 平台目录，确保干净（预防缓存误操作）
       - name: Clean cached android platform (if exists)
         run: rm -rf ~/.buildozer/android/platform
 
@@ -51,6 +49,11 @@ jobs:
           ln -s /usr/local/lib/android/sdk/ndk/25b ~/.buildozer/android/platform/android-ndk-r25b
           ln -s /usr/local/lib/android/sdk ~/.buildozer/android/platform/android-sdk
 
+      # ---- 新增这个部分 ----
+      - name: Ensure no leftover NDK folder before build
+        run: rm -rf ~/.buildozer/android/platform/android-ndk-r25b
+      # ---- 新增这个部分 ----
+
       - name: Build APK
         run: buildozer -v android debug
 
@@ -59,5 +62,4 @@ jobs:
         with:
           name: receipt-ocr-apk
           path: |
-            # 用 find 自动上传所有 apk，防止目录有动态变化
             $(find bin -name '*.apk' | tr '\n' ' ')
