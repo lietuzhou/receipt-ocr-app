@@ -20,24 +20,27 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Cache Buildozer dependencies
+      # 只缓存 p4a 依赖，避免打包平台“脏缓存”
+      - name: Cache python-for-android dependencies
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.buildozer
-            ~/.local/share/python-for-android
-          key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
+          path: ~/.local/share/python-for-android
+          key: ${{ runner.os }}-p4a-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
-            ${{ runner.os }}-buildozer-
+            ${{ runner.os }}-p4a-
+
+      # 强制清理 android 平台目录，确保干净（预防缓存误操作）
+      - name: Clean cached android platform (if exists)
+        run: rm -rf ~/.buildozer/android/platform
 
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
+          sudo apt install -y --no-install-recommends git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
           pip install --upgrade pip
           pip install cython==0.29.36 buildozer==1.5.0
 
-      - name: Clean old NDK/SDK links
+      - name: Clean old NDK/SDK links (redundant,加固清理)
         run: |
           rm -rf ~/.buildozer/android/platform/android-ndk-r25b
           rm -rf ~/.buildozer/android/platform/android-sdk
@@ -55,4 +58,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: receipt-ocr-apk
-          path: bin/*.apk
+          path: |
+            # 用 find 自动上传所有 apk，防止目录有动态变化
+            $(find bin -name '*.apk' | tr '\n' ' ')
