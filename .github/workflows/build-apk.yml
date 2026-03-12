@@ -7,9 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -20,46 +18,46 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Cache python-for-android dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.local/share/python-for-android
-          key: ${{ runner.os }}-p4a-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            ${{ runner.os }}-p4a-
-
-      - name: Clean cached android platform (if exists)
-        run: rm -rf ~/.buildozer/android/platform
-
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y --no-install-recommends git zip unzip openjdk-17-jdk python3-pip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev
-          pip install --upgrade pip
-          pip install cython==0.29.36 buildozer==1.5.0
+          sudo apt install -y --no-install-recommends \
+            git zip unzip openjdk-17-jdk python3-pip \
+            autoconf libtool pkg-config zlib1g-dev \
+            libncurses5-dev libncursesw5-dev libtinfo6 \
+            cmake libffi-dev libssl-dev
 
-      - name: Clean old NDK/SDK links (redundant,加固清理)
+      - name: Upgrade pip and install Python modules
         run: |
-          rm -rf ~/.buildozer/android/platform/android-ndk-r25b
-          rm -rf ~/.buildozer/android/platform/android-sdk
-          mkdir -p ~/.buildozer/android/platform
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade buildozer cython
 
-      - name: Link system NDK/SDK
+      - name: Remove old .buildozer (确保清爽，每次都是干净环境)
+        run: rm -rf ~/.buildozer
+
+      - name: Download Android commandline tools (最新版)
         run: |
-          ln -s /usr/local/lib/android/sdk/ndk/25b ~/.buildozer/android/platform/android-ndk-r25b
-          ln -s /usr/local/lib/android/sdk ~/.buildozer/android/platform/android-sdk
+          mkdir -p $HOME/.android/cmdline-tools
+          cd $HOME/.android/cmdline-tools
+          wget -O commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -o commandlinetools.zip
+          mv cmdline-tools latest
 
-      # ---- 新增这个部分 ----
-      - name: Ensure no leftover NDK folder before build
-        run: rm -rf ~/.buildozer/android/platform/android-ndk-r25b
-      # ---- 新增这个部分 ----
+      - name: Set environment variables for Android SDK
+        run: |
+          echo "ANDROID_SDK_ROOT=$HOME/.android" >> $GITHUB_ENV
+          echo "$HOME/.android/cmdline-tools/latest/bin" >> $GITHUB_PATH
 
-      - name: Build APK
-        run: buildozer -v android debug
+      - name: Accept licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Build with Buildozer (自动下载安装 SDK/NDK)
+        run: |
+          buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: receipt-ocr-apk
           path: |
-            $(find bin -name '*.apk' | tr '\n' ' ')
+            bin/*.apk
