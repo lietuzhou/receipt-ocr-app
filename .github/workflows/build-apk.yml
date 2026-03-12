@@ -21,11 +21,13 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
+          # 安装比原步骤更多的 build 相关依赖以避免 autoconf 报错
           sudo apt install -y --no-install-recommends \
             git zip unzip openjdk-17-jdk python3-pip \
             autoconf libtool pkg-config zlib1g-dev \
             libncurses5-dev libncursesw5-dev libtinfo6 \
-            cmake libffi-dev libssl-dev
+            cmake libffi-dev libssl-dev \
+            automake libtool-bin
 
       - name: Upgrade pip and install Python modules
         run: |
@@ -50,6 +52,10 @@ jobs:
 
       - name: Accept licenses
         run: yes | sdkmanager --licenses
+
+      # 如果工程根目录有 configure.ac，自动执行 autoupdate（大部分情况下可省略，仅在有 configure.ac 的依赖源码时触发）
+      - name: Run autoupdate on configure.ac if exists
+        run: if [ -f configure.ac ]; then autoupdate; fi
 
       - name: Build with Buildozer (自动下载安装 SDK/NDK)
         run: |
